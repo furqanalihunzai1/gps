@@ -1,93 +1,129 @@
 // #include <iostream> // For debugging
 #include <stdexcept>
 #include <cmath>
+#include <string>
 
 #include "nmea/nmea-parser.h"
+using namespace std;
 
-namespace GPS::NMEA
+namespace GPS
 {
-  bool isSupportedFormat(std::string)
+  bool isSupportedFormat(string s)
   {
-      // Stub definition, needs implementing
-      return false;
+	  //function to check if the format is supported
+      
+
+      if (s == "GLL" || s == "WPL" || s == "RMC" || s == "GGA")
+          return true;
+      else
+          return false;
+
   }
 
-  bool isSingleSentence(std::string s)
+  bool isSingleSentence(string s)
   {
-      char c;
-      unsigned int i;
-      if (s.empty()) return false; // Need this or next line could crash
-      if (s[0] != '$') return false;
-      if (s.size() < 3) return false; // Need this or next line could crash
-      if (s[1] != 'G') return false;
-      // cout << "Debug A" << endl;
-      if (s.size() < 6) return false; // Need this or next line could crash
-      c = s[2];
-      if (c < 65 || c > 90) return false;
-      c = s[3];
-      if (c < 65 || c > 90) return false;
-      c = s[4];
-      if (c < 65 || c > 90) return false;
-      c = s[5];
-      if (c < 'A' || c > 'Z') return false; // Hey Ken: we can do it like this instead of using the ASCII codes.  Shall I change the previous two like this as well?
-      // cout << "Debug B" << endl;
-      if (s.size() < 7) return false; // Need this or next line could crash.
-      if (s[6] != ',') return false;
-      // cout << "Debug C" << endl;
-      /*
-      i = 7;
-      while (true)
-      {
-          if (i == s.size()) return false;
-          if (s[i] == '$') return false; // Not allowed here.
-          if (s[i] == '*') break;
-          ++i;
+	 
+      if (s[0] != '$')
+          return false;
+      if (s[1] != 'G')
+          return false;
+      if (s[2] < 'A' || s[2]>'Z')
+          return false;
+      if (s[3] < 'A' || s[3]>'Z')
+          return false;
+      if (s[4] < 'A' || s[4]>'Z')
+          return false;
+      for (int i = 5; i < s.length() - 3; i++) {
+          if (s[i] == ',')
+              continue;
+          if (s[i] == '*')
+              break;
+          if (s[i] == '$' || s[i] == '*')
+              return false;
       }
-      */
-      // Nadia: for-loop is better.
-      for (i = 7; true; ++i)
-      {
-          if (i == s.size()) return false;
-          if (s[i] == '$') return false; // Not allowed here.
-          if (s[i] == '*') break;
-      }
-      // cout << "Debug D" << endl;
-      if (s.size() < i+3) return false; // Note: i+3 NOT i+2.  This is confusing.
-      c = s[i+1];
-      if ((c < 48) || (c > 57 && c < 65) || (c > 70 && c < 97) || (c > 102)) return false;
-      c = s[i+2];
-      if ((c < 48) || (c > 57 && c < 65) || (c > 70 && c < 97) || (c > 102)) return false;
-      // cout << "Debug E" << endl;
-      // cout << s.size() << endl;
-      // cout << i << endl;
-      if (s.size() != i+3) return false; // Note: i+3 NOT i+2.  This is confusing.
-      // Alice: It's because indexing starts at 0, so the index number is one less.
-      // Nadia: No, it's because we're using '<' rather than '<='.  We need a char at i+2, so we say < i+3.
-      // Ken: But indexing normally starts at 0, and we normally use <. So why is this different?
+      if (s[s.length() - 3] != '*')
+          return false;
       return true;
+
+
+
+
+
+      
   }
 
-  bool hasCorrectChecksum(std::string)
+  bool hasCorrectChecksum(string s)
   {
-      // Stub definition, needs implementing
+    
+
+
+      int sum = 0;
+      for (int i = 1; i < s.length() - 3; i++) {
+          sum = sum ^ s[i];
+      }
+      int a, b;
+      if (s[s.length() - 2] >= '0' && s[s.length() - 2] <= '9')
+          a = s[s.length() - 2] - '0';
+      else
+          a = s[s.length() - 2] - 'A' + 10;
+      if (s[s.length() - 1] >= '0' && s[s.length() - 1] <= '9')
+          b = s[s.length() - 1] - '0';
+      else
+          b = s[s.length() - 1] - 'A' + 10;
+      if (sum == (a * 16 + b))
+          return true;
+      else
+          return false;
+
+
+
+
+      
+  }
+
+  SentenceData parseSingleSentence(string s)
+  {
+      SentenceData sd;
+      sd.transmitter = s.substr(1, 2);
+      sd.format = s.substr(3, 3);
+      int i = 6;
+      while (i < s.length() - 3) {
+          string temp;
+          while (s[i] != ',') {
+              temp = temp + s[i];
+              i++;
+          }
+          sd.dataFields.push_back(temp);
+          i++;
+      }
+      return sd;
+
+
+
+      
+  }
+
+  bool hasCorrectNumberOfFields(SentenceData sd)
+  {
+      if (sd.format == "GLL" && sd.dataFields.size() == 7)
+          return true;
+      if (sd.format == "WPL" && sd.dataFields.size() == 4)
+          return true;
+      if (sd.format == "RMC" && sd.dataFields.size() == 12)
+          return true;
+      if (sd.format == "GGA" && sd.dataFields.size() == 15)
+          return true;
       return false;
-  }
 
-  SentenceData parseSingleSentence(std::string)
-  {
-      // Stub definition, needs implementing
-      return {"", "", {}};
-  }
 
-  bool hasCorrectNumberOfFields(SentenceData)
-  {
-      // Stub definition, needs implementing
-      return false;
+
+
+
   }
 
   Position interpretSentenceData(SentenceData d)
   {
-      using namespace std; // Ken: Writing 'std::' everywhere is irritating.
+       // Ken: Writing 'std::' everywhere is irritating.
       string t, la, lo, ns, ew, e;
       double temp, degs, mins, lat, lon, el;
       Position p = Position(0,0,0); // Dummy object becasue there's no default constructor available for Postion
@@ -329,10 +365,37 @@ namespace GPS::NMEA
       return p;
   }
 
-  std::vector<Position> parseValidSentences(std::istream &)
+  vector<Position> parseValidSentences(istream &is)
   {
-      // Stub definition, needs implementing
-      return {};
+	  //take istream object and return in vector<Position> positions;
+	//without using iostream 
+
+
+          /* Parses a stream of NMEA sentences and returns a vector of Position objects.
+    * The stream may contain multiple sentences, and may contain invalid sentences.
+    * Only valid sentences are parsed.
+    */
+      vector<Position> vp;
+      string s;
+      while (getline(is, s)) {
+          if (isSingleSentence(s) && hasCorrectChecksum(s)) {
+              SentenceData sd = parseSingleSentence(s);
+              if (hasCorrectNumberOfFields(sd)) {
+                  try {
+                      Position p = interpretSentenceData(sd);
+                      vp.push_back(p);
+                  }
+                  catch (domain_error e) {
+                      continue;
+                  }
+              }
+          }
+      }
+      
+      return vp;
+
+
+      
   }
 
 }
